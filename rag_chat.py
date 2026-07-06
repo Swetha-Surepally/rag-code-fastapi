@@ -10,7 +10,7 @@ This file does Step 4 of RAG:
 
 import os
 import chromadb
-from sentence_transformers import SentenceTransformer
+from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
 from google import genai
 from dotenv import load_dotenv
 
@@ -23,9 +23,11 @@ GEMINI_MODEL = "gemini-3.5-flash"
 
 # Load the embedding model and connect to the vector DB once at startup,
 # instead of reloading them every single time a question is asked (this matters for latency!)
-_embedder = SentenceTransformer("all-MiniLM-L6-v2")
 _client = chromadb.PersistentClient(path=CHROMA_DB_PATH)
-_collection = _client.get_collection(COLLECTION_NAME)
+_collection = _client.get_collection(
+    COLLECTION_NAME,
+    embedding_function=DefaultEmbeddingFunction()
+)
 _gemini_client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
 
@@ -34,10 +36,9 @@ def retrieve_chunks(query, top_k=TOP_K):
     Converts the query into an embedding, then searches ChromaDB
     for the most semantically similar chunks (this is the "Retrieval" in RAG).
     """
-    query_embedding = _embedder.encode(query).tolist()
     results = _collection.query(
-        query_embeddings=[query_embedding],
-        n_results=top_k,
+    query_texts=[query],
+    n_results=top_k,
     )
     chunks = results["documents"][0]
     sources = [meta["source"] for meta in results["metadatas"][0]]

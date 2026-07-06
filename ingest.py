@@ -12,7 +12,7 @@ Run it with: python ingest.py
 import os
 from pypdf import PdfReader
 import chromadb
-from sentence_transformers import SentenceTransformer
+from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
 
 DATA_FOLDER = "data"
 CHROMA_DB_PATH = "chroma_db"
@@ -72,8 +72,8 @@ def build_vector_store():
     and stores everything in a local ChromaDB vector database on disk.
     """
     print("Loading embedding model... (first run downloads it, ~80MB, then it's cached)")
-    embedder = SentenceTransformer("all-MiniLM-L6-v2")  # free, runs locally, no API key needed
-
+    embedder = DefaultEmbeddingFunction()
+    
     client = chromadb.PersistentClient(path=CHROMA_DB_PATH)
 
     # Delete old collection if it exists, so re-running this script gives a fresh index
@@ -98,13 +98,11 @@ def build_vector_store():
         for chunk in chunks:
             if chunk.strip() == "":
                 continue
-            embedding = embedder.encode(chunk).tolist()
             collection.add(
-                ids=[str(chunk_id)],
-                embeddings=[embedding],
-                documents=[chunk],
-                metadatas=[{"source": doc["filename"]}],
-            )
+            ids=[str(chunk_id)],
+            documents=[chunk],
+            metadatas=[{"source": doc["filename"]}],
+        )
             chunk_id += 1
 
     print(f"\nDone! Indexed {chunk_id} chunks into the vector database at '{CHROMA_DB_PATH}/'.")
